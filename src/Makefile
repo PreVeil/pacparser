@@ -127,6 +127,14 @@ pymod: pacparser.o pacparser.h libjs.a
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
 	$(PYTHON) ../tests/runtests.py
 
+pvmod: pymod
+	rm -rf pymod/wheel
+	mkdir -p pymod/wheel
+	mkdir -p pymod/wheel/pacparser
+	cp pymod/build/lib.macosx-10.14-x86_64-2.7/pacparser/* pymod/wheel/pacparser
+	cd pymod/wheel && python ../setup_wheel.py bdist_wheel
+
+
 install-pymod: pymod
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py install --root="$(DESTDIR)/" $(EXTRA_ARGS)
 
