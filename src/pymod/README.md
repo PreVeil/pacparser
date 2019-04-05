@@ -36,10 +36,9 @@ Open an admin powershell.
 ```
 
 # macOS:
-
 ```sh
     cd $path/pacparser
-    make -C src -f Makefile.win32 pvmod
+    make -C src pvmod
 ```
 
 Then the pacparser's wheel should be in `pymod/wheel/dist` for both platforms.
