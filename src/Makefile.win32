@@ -35,7 +35,7 @@ pacparser.o: pacparser.c pac_utils.h js.lib
 
 js.lib:
 	$(MAKE) -C spidermonkey -f Makefile.win32
-	cp spidermonkey/js.lib .
+	copy spidermonkey\js.lib .
 
 pacparser.dll: pacparser.o js.lib
 	$(CC) -shared -o pacparser.dll \
@@ -66,9 +66,18 @@ dist: pacparser.dll pactester
 
 # Targets to build python module
 pymod: pacparser.h pacparser.dll pacparser.o js.lib
-	cp pacparser.o js.lib pymod/
-	cd pymod && $(PYTHON) setup.py build
-	cd .. && $(PYTHON) tests\runtests.py
+	copy pacparser.o pymod
+	copy js.lib pymod
+	cd pymod && python setup.py build --compiler mingw32
+	cd .. && python tests\runtests.py
+
+# package as wheel for preveil
+pvmod: pymod
+	if exist pymod\wheel\pacparser rmdir /s /q pymod\wheel\pacparser
+	mkdir pymod\wheel\pacparser
+	copy pacparser.dll pymod\wheel\pacparser
+	copy pymod\build\lib.win32-2.7\pacparser\* pymod\wheel\pacparser
+	cd pymod\wheel && python ..\setup_wheel.py bdist_wheel
 
 pymod2: pacparser.h pacparser.dll
 	cd pymod && py -2.7-32 setup.py dist
