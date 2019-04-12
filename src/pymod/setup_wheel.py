@@ -5,7 +5,7 @@ import sys
 if sys.platform == "win32":
     package_data = {"pacparser": ["pacparser.dll", "_pacparser.pyd"]}
 
-elif sys.platform == "darwin":
+elif sys.platform in ["darwin", "linux2"]:
     package_data = {
         "pacparser": ["_pacparser.so"],
     }
