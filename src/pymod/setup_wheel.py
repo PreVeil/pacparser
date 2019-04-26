@@ -3,7 +3,8 @@ import sys
 
 
 if sys.platform == "win32":
-    package_data = {"pacparser": ["pacparser.dll", "_pacparser.pyd"]}
+    package_data = {"pacparser": [
+        "libgcc_s_dw2-1.dll", "pacparser.dll", "_pacparser.pyd"]}
 
 elif sys.platform in ["darwin", "linux2"]:
     package_data = {

@@ -35,7 +35,7 @@ Open an admin powershell.
     make -C src -f Makefile.win32 pvmod
 ```
 
-# macOS:
+# macOS and linux:
 ```sh
     cd $path/pacparser
     make -C src pvmod

@@ -75,6 +75,7 @@ pymod: pacparser.h pacparser.dll pacparser.o js.lib
 pvmod: pymod
 	if exist pymod\wheel\pacparser rmdir /s /q pymod\wheel\pacparser
 	mkdir pymod\wheel\pacparser
+	copy pymod\libgcc_s_dw2-1.dll pymod\wheel\pacparser
 	copy pacparser.dll pymod\wheel\pacparser
 	copy pymod\build\lib.win32-2.7\pacparser\* pymod\wheel\pacparser
 	cd pymod\wheel && python ..\setup_wheel.py bdist_wheel
