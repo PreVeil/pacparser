@@ -53,12 +53,12 @@ endif
 	$(CC) -o jskwgen js/src/jskwgen.c
 	jskwgen > js/src/jsautokw.h
 	rm jskwgen.exe
-	
+
 js.lib: js\src\jsautokw.h $(JS_OBJECTS)
 	ar r js.lib $(JS_OBJECTS)
 	ranlib js.lib
 
 clean:
-	rm js\src\*.o
-	rm js\src\jsautokw.h
-	rm *.lib
+	rm js/src/*.o -r -fo
+	rm js/src/jsautokw.h -r -fo
+	rm *.lib -r -fo

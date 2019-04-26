@@ -127,6 +127,27 @@ pymod: pacparser.o pacparser.h libjs.a
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
 	$(PYTHON) ../tests/runtests.py
 
+#FIXME: don't rely on hardcoded platform-version lib path
+ifeq ($(OS_ARCH),Darwin)
+copy-pywheel-src:
+	cp pymod/build/lib.macosx-10.14-x86_64-2.7/pacparser/* pymod/wheel/pacparser
+endif
+
+ifeq ($(OS_ARCH),Linux)
+copy-pywheel-src:
+	cp pymod/build/lib.linux-x86_64-2.7/pacparser/* pymod/wheel/pacparser
+endif
+
+clean-py-wheel:
+	rm -rf pymod/wheel
+	mkdir -p pymod/wheel
+	mkdir -p pymod/wheel/pacparser
+
+# compile the deps, clean up the old wheel dir and build the new one
+pvmod: pymod clean-py-wheel copy-pywheel-src
+	cd pymod/wheel && python ../setup_wheel.py bdist_wheel
+
+
 install-pymod: pymod
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py install --root="$(DESTDIR)/" $(EXTRA_ARGS)
 
