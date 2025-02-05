@@ -1,7 +1,7 @@
 
 
 PACPARSER = libpacparser.a
-JS = libjs.a
+JS = spidermonkey/libjs.a
 HEADER = pacparser.h
 MFILE = Makefile
 
@@ -25,7 +25,7 @@ d:
 
 
 $(PACPARSER): d ./includes/$(HEADER)
-	make -C ../src  -f ../src/$(MFILE) staticlib
+	make -C ../src  -f ../src/$(MFILE) libpacparser.a
 	@pwsh -Command "Copy-Item ../src/$(PACPARSER) ./libs/$(PACPARSER)"
 	@pwsh -Command "Copy-Item ../src/$(JS) ./libs/$(PACPARJSSER)"
 
