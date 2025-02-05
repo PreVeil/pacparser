@@ -22,9 +22,16 @@
 # packaging script.
 -include version.mk
 
+ifeq ($(shell uname),FreeBSD)
+SHELL := /usr/local/bin/bash
+else
+SHELL := /bin/bash
+endif
+
 VERSION ?= $(shell git describe --always --tags --candidate=100)
 
-PREFIX ?= /usr
+GIT_TAG := $(shell git describe --exact-match --exclude tip --tags HEAD 2>/dev/null || /bin/true)
+
 OS_ARCH := $(subst /,_,$(shell uname -s | sed /\ /s//_/))
 
 LIBRARY_NAME = libpacparser
@@ -40,65 +47,76 @@ LIBRARY = $(LIBRARY_NAME).$(SO_SUFFIX).$(LIB_VER)
 MKSHLIB = $(CC) -shared
 LIB_OPTS = -Wl,-soname=$(LIBRARY) -Wl,-exclude-libs=libjs.a
 SHFLAGS = -fPIC
-SMCFLAGS = -DHAVE_VA_COPY -DVA_COPY=__va_copy
+SMCFLAGS = -DHAVE_VA_COPY -DVA_COPY=va_copy
+
+ifeq ($(OS_ARCH),FreeBSD)
+	PREFIX ?= /usr/local
+endif
 
 ifeq ($(OS_ARCH),Darwin)
-  PREFIX = /usr/local
-  MAC_MINOR_VERSION := $(shell sw_vers -productVersion | cut -d. -f2)
-  MAC_GT_5 := $(shell [ $(MAC_MINOR_VERSION) -le 5 ] && echo false)
+  PREFIX ?= /usr/local
+  MAC_MAJOR_VERSION := $(shell sw_vers -productVersion | cut -d. -f1)
+  MAC_GT_OS11 := $(shell [ $(MAC_MAJOR_VERSION) -le 10 ] && echo false)
   SO_SUFFIX = dylib
   LIBRARY = $(LIBRARY_NAME).$(LIB_VER).$(SO_SUFFIX)
   MKSHLIB = $(CC) -dynamiclib -framework System
   LIB_OPTS = -install_name $(PREFIX)/$(notdir $@)
   SHFLAGS =
-  ifeq ($(MAC_GT_5),false)
-    SMCFLAGS =
+  ifeq ($(MAC_GT_OS11),false)
+    MAC_MINOR_VERSION := $(shell sw_vers -productVersion | cut -d. -f2)
+    MAC_GT_10_5 := $(shell [ $(MAC_MINOR_VERSION) -le 5 ] && echo false)
+    ifeq ($(MAC_GT_10_5),false)
+      SMCFLAGS =
+    endif
   endif
 endif
 
-CFLAGS = -g -DXP_UNIX -Wall -DVERSION=$(VERSION)
+PREFIX ?= /usr
+MAINT_CFLAGS := -g -DXP_UNIX -Wall -DVERSION=$(VERSION)
 
 ifndef PYTHON
   PYTHON = python
 endif
 
 # Spidermonkey library.
-CFLAGS += -Ispidermonkey/js/src
+MAINT_CFLAGS += -Ispidermonkey/js/src
 
 LIBRARY_LINK = $(LIBRARY_NAME).$(SO_SUFFIX)
 PREFIX := $(DESTDIR)$(PREFIX)
 LIB_PREFIX = $(PREFIX)/lib
 INC_PREFIX = $(PREFIX)/include
 BIN_PREFIX = $(PREFIX)/bin
+DOC_PREFIX = $(PREFIX)/share/doc/pacparser
 MAN_PREFIX = $(PREFIX)/share/man
 
 .PHONY: clean pymod install-pymod
 all: $(LIBRARY_LINK)
 
 jsapi_buildstamp: spidermonkey/js/src
-	cd spidermonkey && SMCFLAGS="$(SHFLAGS) $(SMCFLAGS)" "$(MAKE)" jsapi
+	cd spidermonkey && SMCFLAGS="$(SHFLAGS) $(SMCFLAGS)" $(MAKE) jsapi
 	touch jsapi_buildstamp
 
-libjs.a: spidermonkey/js/src
-	cd spidermonkey && SMCFLAGS="$(SHFLAGS) $(SMCFLAGS)" "$(MAKE)" jslib
+spidermonkey/libjs.a: spidermonkey/js/src
+	cd spidermonkey && SMCFLAGS="$(SHFLAGS) $(SMCFLAGS)" $(MAKE) jslib
 
 pacparser.o: pacparser.c pac_utils.h pacparser.h jsapi_buildstamp
-	$(CC) $(CFLAGS) $(SHFLAGS) -c pacparser.c -o pacparser.o
+	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(SHFLAGS) -c pacparser.c -o pacparser.o
 	touch pymod/pacparser_o_buildstamp
 
-staticlib: pacparser.o
-	$(AR) rc libpacparser.a pacparser.o
+$(LIBRARY): pacparser.o spidermonkey/libjs.a
+	$(MKSHLIB) $(MAINT_CFLAGS) $(CFLAGS) $(LDFLAGS) $(LIB_OPTS) -o $(LIBRARY) pacparser.o spidermonkey/libjs.a -lm
 
-$(LIBRARY): pacparser.o libjs.a libpacparser.a
-	$(MKSHLIB) $(CFLAGS) $(LDFLAGS) $(LIB_OPTS) -o $(LIBRARY) pacparser.o libjs.a -lm
+libpacparser.a: pacparser.o spidermonkey/libjs.a
+	cp spidermonkey/libjs.a libpacparser.a
+	ar rcs libpacparser.a pacparser.o
 
 $(LIBRARY_LINK): $(LIBRARY)
 	ln -sf $(LIBRARY) $(LIBRARY_LINK)
 
-pactester: pactester.c pacparser.h $(LIBRARY_LINK)
-	$(CC) $(CFLAGS) $(LDFLAGS) pactester.c -o pactester -lpacparser -L. -I.
+pactester: pactester.c pacparser.h libpacparser.a
+	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(LDFLAGS) pactester.c libpacparser.a -o pactester -lm -L. -I.
 
-testpactester: pactester
+testpactester: pactester $(LIBRARY_LINK)
 	echo "Running tests for pactester."
 	NO_INTERNET=$(NO_INTERNET) ../tests/runtests.sh
 
@@ -118,22 +136,33 @@ install: all
 	install -d $(MAN_PREFIX)/man3/
 	(test -d ../docs && install -m 644 ../docs/man/man3/*.3 $(MAN_PREFIX)/man3/) || true
 	# install html docs
-	install -d $(PREFIX)/share/doc/pacparser/html/
-	(test -d ../docs/html && install -m 644 ../docs/html/* $(PREFIX)/share/doc/pacparser/html/) || true
+	install -d $(DOC_PREFIX)/html/
+	(test -d ../docs/html && install -m 644 ../docs/html/* $(DOC_PREFIX)/html/) || true
 	# install examples
-	install -d $(PREFIX)/share/doc/pacparser/examples/
-	(test -d ../examples && install -m 644 ../examples/* $(PREFIX)/share/doc//pacparser/examples/) || true
+	install -d $(DOC_PREFIX)/examples/
+	(test -d ../examples && install -m 644 ../examples/* $(DOC_PREFIX)/examples/) || true
+
+dist: all
+	bindir=pacparser-$(VERSION)-$(DIST_OS_SUFFIX); \
+	bindir=$${bindir/-latest/}; \
+	PREFIX= $(MAKE) install DESTDIR=$${bindir}; \
+	zip -r $${bindir}.zip $${bindir}/.
 
 # Targets to build python module
-pymod: pacparser.o pacparser.h libjs.a
-	cp libjs.a pacparser.o pymod/
+pymod: pacparser.o pacparser.h spidermonkey/libjs.a
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
+	$(PYTHON) ../tests/runtests.py
+
+pymod-dist: pacparser.o pacparser.h spidermonkey/libjs.a
+	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
+	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py dist
 	$(PYTHON) ../tests/runtests.py
 
 install-pymod: pymod
 	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py install --root="$(DESTDIR)/" $(EXTRA_ARGS)
 
 clean:
-	rm -f $(LIBRARY_LINK) $(LIBRARY) libjs.a pacparser.o pactester pymod/pacparser_o_buildstamp jsapi_buildstamp
-	cd pymod && python setup.py clean --all
-	cd spidermonkey && "$(MAKE)" clean
+	rm -f $(LIBRARY_LINK) $(LIBRARY) pacparser.o pactester pymod/pacparser_o_buildstamp jsapi_buildstamp
+	rm -rf dist
+	cd pymod && $(PYTHON) setup.py clean --all
+	cd spidermonkey && $(MAKE) clean

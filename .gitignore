@@ -6,6 +6,7 @@
 *.so
 *.so.*
 *.dylib
+*.dSYM
 
 # Executables
 *.exe
@@ -25,3 +26,13 @@ src/pactester.dSYM
 # OS specific files
 .DS_Store
 
+# build
+**build
+
+# Sonar scanner
+.scannerwork
+
+#  .json config
+*.json
+pactester
+info.plist

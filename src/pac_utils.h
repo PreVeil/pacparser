@@ -1,4 +1,4 @@
-// Copyright (C) 2007 Manu Garg.
+// Copyright (C) 2007-2023 Manu Garg.
 // Author: Manu Garg <manugarg@gmail.com>
 //
 // pac_utils.h defines some of the functions used by PAC files. This file is
@@ -214,7 +214,7 @@ static const char *pacUtils =
 "    if (isGMT) {\n"
 "        argc--;\n"
 "    }\n"
-"    // function will work even without explict handling of this case\n"
+"    // function will work even without explicit handling of this case\n"
 "    if (argc == 1) {\n"
 "        var tmp = parseInt(arguments[0]);\n"
 "        if (isNaN(tmp)) {\n"
@@ -332,41 +332,3 @@ static const char *pacUtils =
 "        return FindProxyForURL(url, host);\n"
 "    }\n"
 "}\n";
-
-
-// You must free the result if result is non-NULL.
-char *str_replace(const char *orig, char *rep, char *with) {
-    char *tmporig = malloc(strlen(orig) + 1); // Copy of orig that we work with
-    tmporig = strcpy(tmporig, orig);
-
-    char *result;  // the return string
-    char *ins;     // the next insert point
-    char *tmp;     // varies
-    int count;     // number of replacements
-    int len_front; // distance between rep and end of last rep
-    int len_rep  = strlen(rep);
-    int len_with = strlen(with);
-
-    // Get the count of replacements
-    ins = tmporig;
-    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
-        ins = tmp + len_rep;
-    }
-
-    tmp = result = malloc(strlen(tmporig) + (len_with - len_rep) * count + 1);
-
-    // first time through the loop, all the variable are set correctly
-    // from here on,
-    //    tmp points to the end of the result string
-    //    ins points to the next occurrence of rep in tmporig
-    //    tmporig points to the remainder of tmporig after "end of rep"
-    while (count--) {
-        ins = strstr(tmporig, rep);
-        len_front = ins - tmporig;
-        tmp = strncpy(tmp, tmporig, len_front) + len_front;
-        tmp = strcpy(tmp, with) + len_with;
-        tmporig += len_front + len_rep; // move to next "end of rep"
-    }
-    strcpy(tmp, tmporig);
-    return result;
-}

@@ -1,10 +1,12 @@
-[![Build Status](https://travis-ci.org/manugarg/pacparser.svg?branch=master)](https://travis-ci.org/manugarg/pacparser)
-[![Build status](https://ci.appveyor.com/api/projects/status/uvct988e0jx991x3?svg=true)](https://ci.appveyor.com/project/manugarg/pacparser)
+[![Build Status](https://github.com/manugarg/pacparser/actions/workflows/build.yml/badge.svg)](https://github.com/manugarg/pacparser/actions/workflows/build.yml)
+[![PyPI version](https://badge.fury.io/py/pacparser.svg)](https://badge.fury.io/py/pacparser)
+[![PyPI Downloads](https://static.pepy.tech/badge/pacparser)](https://pepy.tech/project/pacparser)
+[![Packaging status](https://repology.org/badge/tiny-repos/pacparser.svg)](https://repology.org/project/pacparser/versions)
 
-# [Pacparser](http://pacparser.github.io)
-***[pacparser.github.io](http://pacparser.github.io)***
+# [Pacparser](http://pacparser.manugarg.com)
+***[pacparser.manugarg.com](http://pacparser.manugarg.com)***
 
-pacparser is a library to parse proxy auto-config (PAC) files. Proxy auto-config
+Pacparser is a library to parse proxy auto-config (PAC) files. Proxy auto-config
 files are a vastly used proxy configuration method these days. Web browsers can
 use a PAC file to determine which proxy server to use or whether to go direct
 for a given URL. PAC files are written in JavaScript and can be programmed to
@@ -13,30 +15,41 @@ upon URL, source IP address, protocol, time of the day etc. PAC files introduce
 a lot of possibilities. Please look at the wikipedia entry for Proxy auto-config
 (<http://en.wikipedia.org/wiki/Proxy_auto-config>) for more information.
 
-Needless to say, PAC files are now a widely accepted method for proxy
-configuration management and companies all over are using them in corporate
-environment. Almost all popular web browsers support PAC files. The idea behind
-pacparser is to make it easy to add this PAC file parsing capability to any
-program (C and python supported right now). It comes as a shared C library and
-a python module which can be used to make any C or python program PAC scripts
-intelligent. Some very useful targets could be popular web software like wget,
-curl and python-urllib.
+The idea behind pacparser is to make it easy to add PAC-file parsing capability
+to any program (C and python supported right now). It comes as a shared C library
+and a python module which can be used to make any C or python program PAC scripts
+aware.
 
 ### Implementation
-pacparser makes use of Mozilla's JavaScript interpreter SpiderMonkey to parse
+Pacparser makes use of the Mozilla's JavaScript interpreter SpiderMonkey to parse
 PAC files (which are nothing but javascripts). Apart from that, proxy
 auto-config standard assumes availability of some functions which are not
-part of standard JavaScript. pacparser uses Mozilla's PAC implementation to
-define all these functions except couple of dns functions which are defined by
+part of the standard JavaScript. Pacparser uses Mozilla's PAC implementation to
+define all these functions except for a couple of dns functions which are defined by
 pacparser itself. As a result, pacparser is as close to standard as it gets :)
 
 ### Install
-Please see 'INSTALL' in the root directory of the package.
+
+For Python module, you can use pip. Pre-built module is available for `64-bit Linux,
+Windows, MacOS-Intel, and MacOS-ARM`, for Python `3.7, 3.8, 3.9, 3.10 and 3.11`.
+```
+python -m pip install pacparser
+python -m pip install pacparser==1.3.8.dev15 (specific version)
+```
+
+For other pre-built binaries, download them from the project's [releases](
+  https://github.com/manugarg/pacparser/releases) page.
+  
+You can also download the latest binaries from the [Github actions](
+  https://github.com/manugarg/pacparser/actions) artifcacts.
+
+See [INSTALL](https://github.com/manugarg/pacparser/blob/master/INSTALL) for how
+to compile pacparser from the source.
 
 ### How to use it?
-Pacparser comes as a shared library (libpacparser.so on Unix-like systems
-and pacparser.dll on windows) as well as a python module. Using it is as easy
-compiling your C programs against it or importing pacparser module in your
+Pacparser comes as a shared library (`libpacparser.so` on Linux, `libpacparser.dylib`
+on MacOS, and pacparser.dll on windows) as well as a python module. Using it is as
+easy compiling your C programs against it or importing pacparser module in your
 python programs.
 
 ### Usage Examples
@@ -84,11 +97,10 @@ PROXY proxy1.manugarg.com:3128; PROXY proxy2.manugarg.com:3128; DIRECT
 
 #### Platforms
 pacparser has been tested to work on Linux (all architectures supported by
-Debian), Mac OS X and Win32 systems.
+Debian), FreeBSD, Mac OS X and Win32 systems.
 
 #### Homepage
-<http://pacparser.github.io>
+http://pacparser.manugarg.com
 
-Author: Manu Garg <manugarg@gmail.com>  
-Copyright (C) 2007 Manu Garg.
-Copyright (C) 2015 Google, Inc.
+Author: [Manu Garg](http://github.com/manugarg)
+

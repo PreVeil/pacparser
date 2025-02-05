@@ -1,4 +1,4 @@
-// Copyright (C) 2008 Manu Garg.
+// Copyright (C) 2008-2023 Manu Garg.
 // Author: Manu Garg <manugarg@gmail.com>
 //
 // This file implements pactester using pacparser.
@@ -32,7 +32,7 @@
 #define LINEMAX 4096  // Max length of any line read from text files (4 KiB)
 #define PACMAX (1024 * 1024)  // Max size of the PAC script (1 MiB)
 
-void usage(const char *progname)
+__attribute__((noreturn)) void usage(const char *progname)
 {
   fprintf(stderr, "\nUsage:  %s <-p pacfile> <-u url> [-h host] "
           "[-c client_ip] [-e]", progname);
@@ -59,12 +59,14 @@ char *get_host_from_url(const char *url)
 {
   // copy  url to a  pointer that we'll use to seek through the string.
   char *p = strdup(url);
+  char *q = p;
   // Move to :
   while (*p != ':' && *p != '\0')
     p++;
   if (p[0] == '\0'||                    // We reached end without hitting :
       p[1] != '/' || p[2] != '/'        // Next two characters are not //
       ) {
+    free(q);
     fprintf(stderr, "pactester.c: Not a proper URL\n");
     return NULL;
   }
@@ -72,6 +74,7 @@ char *get_host_from_url(const char *url)
   // Host part starts from here.
   char *host = p;
   if (*p == '\0' || *p == '/' || *p == ':') {   // If host part is null.
+    free(q);
     fprintf(stderr, "pactester.c: Not a proper URL\n");
     return NULL;
   }
@@ -153,19 +156,16 @@ int main(int argc, char* argv[])
     while (fgets(buffer, LINEMAX, stdin)) {
       if (strlen(buffer) == 0)
         break;
-      char *old = script;
       script_size += strlen(buffer);
       if (script_size > PACMAX) {
         fprintf(stderr, "Input file is too big. Maximum allowed size is: %d",
                 PACMAX);
-        free(script);
-        return 1;
+        exit(1);
       }
       script = realloc(script, script_size);
       if (script == NULL) {
         perror("pactester.c: Failed to allocate the memory for the script");
-        free(old);
-        return 1;
+        exit(1);
       }
       strcat(script, buffer);
     }
@@ -179,9 +179,8 @@ int main(int argc, char* argv[])
     if (!pacparser_parse_pac_string(script)) {
       fprintf(stderr, "pactester.c: Could not parse the pac script: %s\n",
               script);
-      free(script);
       pacparser_cleanup();
-      return 1;
+      exit(1);
     }
     free(script);
   }
@@ -190,12 +189,15 @@ int main(int argc, char* argv[])
       fprintf(stderr, "pactester.c: Could not parse the pac file: %s\n",
               pacfile);
       pacparser_cleanup();
-      return 1;
+      exit(1);
     }
   }
 
-  if (client_ip)
-    pacparser_setmyip(client_ip);
+  if (client_ip && !pacparser_setmyip(client_ip)) {
+    fprintf(stderr, "pactester.c: Error setting client IP\n");
+    pacparser_cleanup();
+    exit(1);
+  }
 
   char *proxy;
 
@@ -205,25 +207,26 @@ int main(int argc, char* argv[])
     // function will print a proper error message in that case).
     host = host ? host: get_host_from_url(url);
     if (!host) {
-      return 1;
+      exit(1);
     }
     proxy = pacparser_find_proxy(url, host);
     if (proxy == NULL) {
       fprintf(stderr, "pactester.c: %s %s.\n",
               "Problem in finding proxy for", url);
       pacparser_cleanup();
-      return 1;
+      exit(1);
     }
     printf("%s\n", proxy);
+    exit(0);
   }
 
-  else if (urlslist) {
+  if (urlslist) {
     char line[LINEMAX];
     FILE *fp;
     if (!(fp = fopen(urlslist, "r"))) {
       fprintf(stderr, "pactester.c: Could not open urlslist: %s", urlslist);
       pacparser_cleanup();
-      return 1;
+      exit(1);
     }
     while (fgets(line, sizeof(line), fp)) {
       char *url = line;
@@ -248,12 +251,13 @@ int main(int argc, char* argv[])
         fprintf(stderr, "pactester.c: %s %s.\n",
                 "Problem in finding proxy for", url);
         pacparser_cleanup();
-        return 1;
+        exit(1);
       }
       if (proxy)
         printf("%s : %s\n", url, proxy);
     }
     fclose(fp);
+    exit(0);
   }
 
   pacparser_cleanup();

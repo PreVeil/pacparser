@@ -21,23 +21,21 @@
 # Include config.mk to get the variable $(OBJDIR).
 # We need to create $(OBJDIR) first to be able to build libjs.a alone.
 
-ifneq ($(MAKECMDGOALS),clean)
-  DEPTH = js/src
-  include js/src/config.mk
-endif
+DEPTH = js/src
+include js/src/config.mk
 
 jsapi: js-buildstamp
 
 jslib: js-buildstamp
 	cd js/src
-	find . -name "libjs.a" -exec cp {} .. \;
+	find . -name "libjs.a" -exec cp {} . \;
 
 js-buildstamp:
 	mkdir -p js/src/$(OBJDIR)
-	CFLAGS="$(SMCFLAGS)" "$(MAKE)" -C js/src -f Makefile.ref libjs.a
+	CFLAGS="$(SMCFLAGS)" $(MAKE) -C js/src -f Makefile.ref libjs.a
 	find js/src -name "jsautocfg.h" -exec cp {} js/src \;
 	touch js-buildstamp
 
 clean:
-	rm -rf js-buildstamp
-	rm js/src/*.o
+	rm -rf js/src/$(OBJDIR)
+	rm -f libjs.a js-buildstamp

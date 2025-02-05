@@ -1,4 +1,4 @@
-// Copyright (C) 2007 Manu Garg.
+// Copyright (C) 2007-2023 Manu Garg.
 // Author: Manu Garg <manugarg@gmail.com>
 //
 // pacparser is a library that provides methods to parse proxy auto-config
@@ -25,6 +25,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef __FreeBSD__
+#include <arpa/inet.h>
+#endif
+
 #ifdef XP_UNIX
 #include <unistd.h>
 #include <sys/socket.h>                // for AF_INET
@@ -41,7 +45,14 @@
 
 #define MAX_IP_RESULTS 10
 
-static char *myip = NULL;
+#ifdef __GNUC__
+#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#else
+#  define UNUSED(x) UNUSED_ ## x
+#endif
+
+static char my_ip_buf[INET6_ADDRSTRLEN+1];
+static int my_ip_set = 0;
 
 // Default error printer function.
 static int		// Number of characters printed, negative value in case of output error.
@@ -80,25 +91,34 @@ _debug(void) {
 static char *                      // File content in string or NULL if failed.
 read_file_into_str(const char *filename)
 {
-  char *str;
-  int file_size;
-  FILE *fptr;
-  int records_read;
-  if (!(fptr = fopen(filename, "r"))) goto error1;
-  if ((fseek(fptr, 0L, SEEK_END) != 0)) goto error2;
-  if (!(file_size=ftell(fptr))) goto error2;
-  if ((fseek(fptr, 0L, SEEK_SET) != 0)) goto error2;
-  if (!(str = (char*) malloc(file_size+1))) goto error2;
-  if (!(records_read=fread(str, 1, file_size, fptr))) {
+  FILE *fptr = fopen(filename, "rb");
+  if (fptr == NULL) return NULL;
+
+  if (fseek(fptr, 0L, SEEK_END) != 0) goto error2;
+  long file_size=ftell(fptr);
+  if (file_size == -1) goto error2;
+  if (fseek(fptr, 0L, SEEK_SET) != 0) goto error2;
+
+  char *str = (char*) malloc(file_size+1);
+  if (str == NULL) goto error2;
+
+  // Read the file into the string
+  size_t bytes_read = fread(str, 1, file_size, fptr);
+  if (bytes_read != file_size) {
     free(str);
     goto error2;
   }
-  str[records_read] = '\0';
+ 
+  // This check should not be needed but adding this satisfies
+  // sonarlint static analysis, otherwise it complains about tainted
+  // index.
+  if (bytes_read < file_size+1) {
+    str[bytes_read] = '\0';
+  }
   fclose(fptr);
   return str;
 error2:
   fclose(fptr);
-error1:
   return NULL;
 }
 
@@ -119,7 +139,6 @@ resolve_host(const char *hostname, char *ipaddr_list, int max_results,
 {
   struct addrinfo hints;
   struct addrinfo *result;
-  struct addrinfo *ai;
   char ipaddr[INET6_ADDRSTRLEN];
   int error;
 
@@ -140,7 +159,7 @@ resolve_host(const char *hostname, char *ipaddr_list, int max_results,
   error = getaddrinfo(hostname, NULL, &hints, &result);
   if (error) return error;
   int i = 0;
-  for(ai = result; ai != NULL && i < max_results; ai = ai->ai_next, i++) {
+  for(struct addrinfo *ai = result; ai != NULL && i < max_results; ai = ai->ai_next, i++) {
     getnameinfo(ai->ai_addr, ai->ai_addrlen, ipaddr, sizeof(ipaddr), NULL, 0,
                 NI_NUMERICHOST);
     if (ipaddr_list[0] == '\0') sprintf(ipaddr_list, "%s", ipaddr);
@@ -156,7 +175,7 @@ resolve_host(const char *hostname, char *ipaddr_list, int max_results,
 // dnsResolve in JS context; not available in core JavaScript.
 // returns javascript null if not able to resolve.
 static JSBool                                  // JS_TRUE or JS_FALSE
-dns_resolve(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+dns_resolve(JSContext *cx, JSObject *UNUSED(o), uintN UNUSED(u), jsval *argv, jsval *rval)
 {
   char* name = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
   char* out;
@@ -178,7 +197,7 @@ dns_resolve(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 // dnsResolveEx in JS context; not available in core JavaScript.
 // returns javascript null if not able to resolve.
 static JSBool                                  // JS_TRUE or JS_FALSE
-dns_resolve_ex(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
+dns_resolve_ex(JSContext *cx, JSObject *UNUSED(o), uintN UNUSED(u), jsval *argv,
                jsval *rval)
 {
   char* name = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
@@ -199,13 +218,13 @@ dns_resolve_ex(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
 // myIpAddress in JS context; not available in core JavaScript.
 // returns 127.0.0.1 if not able to determine local ip.
 static JSBool                                  // JS_TRUE or JS_FALSE
-my_ip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+my_ip(JSContext *cx, JSObject *UNUSED(o), uintN UNUSED(u), jsval *argv, jsval *rval)
 {
   char ipaddr[INET6_ADDRSTRLEN];
   char* out;
 
-  if (myip)                  // If my (client's) IP address is already set.
-    strcpy(ipaddr, myip);
+  if (my_ip_set)                  // If my (client's) IP address is already set.
+    strcpy(ipaddr, my_ip_buf);
   else {
     char name[256];
     gethostname(name, sizeof(name));
@@ -224,13 +243,13 @@ my_ip(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 // myIpAddressEx in JS context; not available in core JavaScript.
 // returns 127.0.0.1 if not able to determine local ip.
 static JSBool                                  // JS_TRUE or JS_FALSE
-my_ip_ex(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+my_ip_ex(JSContext *cx, JSObject *UNUSED(o), uintN UNUSED(u), jsval *UNUSED(argv), jsval *rval)
 {
   char ipaddr[INET6_ADDRSTRLEN * MAX_IP_RESULTS + MAX_IP_RESULTS];
   char* out;
 
-  if (myip)                  // If my (client's) IP address is already set.
-    strcpy(ipaddr, myip);
+  if (my_ip_set)                  // If my (client's) IP address is already set.
+    strcpy(ipaddr, my_ip_buf);
   else {
     char name[256];
     gethostname(name, sizeof(name));
@@ -257,16 +276,22 @@ static JSClass global_class = {
 };
 
 // Set my (client's) IP address to a custom value.
-void
+int
 pacparser_setmyip(const char *ip)
 {
-  myip = malloc(strlen(ip) +1);         // Allocate space just to be sure.
-  strcpy(myip, ip);
+  if (strlen(ip) > INET6_ADDRSTRLEN) {
+    fprintf(stderr, "pacparser_setmyip: IP too long: %s\n", ip);
+    return 0;
+  }
+
+  strcpy(my_ip_buf, ip);
+  my_ip_set = 1;
+  return 1;
 }
 
-// Decprecated: This function doesn't do anything.
+// Deprecated: This function doesn't do anything.
 //
-// This function doesn't do anything. Microsoft exntensions are now enabled by
+// This function doesn't do anything. Microsoft extensions are now enabled by
 // default.
 void
 pacparser_enable_microsoft_extensions()
@@ -296,22 +321,22 @@ pacparser_init()
   }
   JS_SetErrorReporter(cx, print_jserror);
   // Export our functions to Javascript engine
-  if (!JS_DefineFunction(cx, global, "dnsResolve", dns_resolve, 1, 0)) {
+  if (!JS_DefineFunction(cx, global, "dnsResolve", &dns_resolve, 1, 0)) {
     print_error("%s %s\n", error_prefix,
 		  "Could not define dnsResolve in JS context.");
     return 0;
   }
-  if (!JS_DefineFunction(cx, global, "myIpAddress", my_ip, 0, 0)) {
+  if (!JS_DefineFunction(cx, global, "myIpAddress", &my_ip, 0, 0)) {
     print_error("%s %s\n", error_prefix,
 		  "Could not define myIpAddress in JS context.");
     return 0;
   }
-  if (!JS_DefineFunction(cx, global, "dnsResolveEx", dns_resolve_ex, 1, 0)) {
+  if (!JS_DefineFunction(cx, global, "dnsResolveEx", &dns_resolve_ex, 1, 0)) {
     print_error("%s %s\n", error_prefix,
       "Could not define dnsResolveEx in JS context.");
     return 0;
   }
-  if (!JS_DefineFunction(cx, global, "myIpAddressEx", my_ip_ex, 0, 0)) {
+  if (!JS_DefineFunction(cx, global, "myIpAddressEx", &my_ip_ex, 0, 0)) {
     print_error("%s %s\n", error_prefix,
 		  "Could not define myIpAddressEx in JS context.");
     return 0;
@@ -328,13 +353,13 @@ pacparser_init()
 		  "Could not evaluate pacUtils defined in pac_utils.h.");
     return 0;
   }
-  if (_debug()) print_error("DEBUG: Pacparser Initalized.\n");
+  if (_debug()) print_error("DEBUG: Pacparser Initialized.\n");
   return 1;
 }
 
 // Parses the given PAC script string.
 //
-// Evaulates the given PAC script string in the JavaScript context created
+// Evaluates the given PAC script string in the JavaScript context created
 // by pacparser_init.
 int                                     // 0 (=Failure) or 1 (=Success)
 pacparser_parse_pac_string(const char *script)
@@ -431,31 +456,14 @@ pacparser_find_proxy(const char *url, const char *host)
     return NULL;
   }
 
-  // URL-encode "'" as we use single quotes to stick the URL into a temporary script.
-  char *sanitized_url = str_replace(url, "'", "%27");
-  // Hostname shouldn't have single quotes in them
-  if (strchr(host, '\'')) {
-    print_error("%s %s\n", error_prefix,
-		"Invalid hostname: hostname can't have single quotes.");
-    return NULL;
-  }
-
-  script = (char*) malloc(32 + strlen(url) + strlen(host));
-  script[0] = '\0';
-  strcat(script, "findProxyForURL('");
-  strcat(script, sanitized_url);
-  strcat(script, "', '");
-  strcat(script, host);
-  strcat(script, "')");
-  if (_debug()) print_error("DEBUG: Executing JavaScript: %s\n", script);
-  if (!JS_EvaluateScript(cx, global, script, strlen(script), NULL, 1, &rval)) {
+  jsval args[2];
+  args[0] = STRING_TO_JSVAL(JS_NewStringCopyZ(cx, url));
+  args[1] = STRING_TO_JSVAL(JS_NewStringCopyZ(cx, host));
+  
+  if (!JS_CallFunctionName(cx, global, "findProxyForURL", 2, args, &rval)) {
     print_error("%s %s\n", error_prefix, "Problem in executing findProxyForURL.");
-    free(sanitized_url);
-    free(script);
     return NULL;
   }
-  free(sanitized_url);
-  free(script);
   return JS_GetStringBytes(JS_ValueToString(cx, rval));
 }
 
@@ -463,8 +471,9 @@ pacparser_find_proxy(const char *url, const char *host)
 void
 pacparser_cleanup()
 {
-  // Reinitliaze config variables.
-  myip = NULL;
+  // Re-initialize config variables.
+  my_ip_set = 0;
+
   if (cx) {
     JS_DestroyContext(cx);
     cx = NULL;
