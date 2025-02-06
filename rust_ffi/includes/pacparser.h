@@ -1,4 +1,4 @@
-// Copyright (C) 2007 Manu Garg.
+// Copyright (C) 2007-2023 Manu Garg.
 // Author: Manu Garg <manugarg@gmail.com>
 //
 // This file defines API for pacparser library.
@@ -54,7 +54,7 @@ int pacparser_parse_pac_file(const char *pacfile       // PAC file to parse
 /// @param pacstring PAC string to parse.
 /// @returns 0 on failure and 1 on success.
 ///
-/// Evaulates the given PAC script string in the JavaScript context created
+/// Evaluates the given PAC script string in the JavaScript context created
 /// by pacparser_init.
 int pacparser_parse_pac_string(const char *pacstring      // PAC string to parse
                                );
@@ -71,7 +71,7 @@ int pacparser_parse_pac(const char *pacfile               // PAC file to parse
 /// @brief Finds proxy for the given URL and Host.
 /// @param url URL to find proxy for.
 /// @param host Host part of the URL.
-/// @returns proxy string on sucess and NULL on error.
+/// @returns proxy string on success and NULL on error.
 ///
 /// Finds proxy for the given URL and Host. This function should be called only
 /// after pacparser engine has been initialized (using pacparser_init) and pac
@@ -104,10 +104,11 @@ void pacparser_cleanup(void);
 
 /// @brief Sets my IP address.
 /// @param ip Custom IP address.
+/// @returns 1 on success and 0 on error.
 ///
 /// Sets my IP address to a custom value. This is the IP address returned by
 /// myIpAddress() javascript function.
-void pacparser_setmyip(const char *ip                 // Custom IP address.
+int pacparser_setmyip(const char *ip                 // Custom IP address.
                        );
 
 /// @brief Type definition for pacparser_error_printer.

@@ -69,6 +69,7 @@ ifeq ($(OS_ARCH),Darwin)
       SMCFLAGS =
     endif
   endif
+  CFLAGS := $(CFLAGS) -arch x86_64 -arch arm64
 endif
 
 PREFIX ?= /usr

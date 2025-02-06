@@ -13,7 +13,7 @@ extern "C" {
     #[doc = " @param pacstring PAC string to parse."]
     #[doc = " @returns 0 on failure and 1 on success."]
     #[doc = ""]
-    #[doc = " Evaulates the given PAC script string in the JavaScript context created"]
+    #[doc = " Evaluates the given PAC script string in the JavaScript context created"]
     #[doc = " by pacparser_init."]
     pub fn pacparser_parse_pac_string(
         pacstring: *const ::std::os::raw::c_char,
@@ -23,7 +23,7 @@ extern "C" {
     #[doc = " @brief Finds proxy for the given URL and Host."]
     #[doc = " @param url URL to find proxy for."]
     #[doc = " @param host Host part of the URL."]
-    #[doc = " @returns proxy string on sucess and NULL on error."]
+    #[doc = " @returns proxy string on success and NULL on error."]
     #[doc = ""]
     #[doc = " Finds proxy for the given URL and Host. This function should be called only"]
     #[doc = " after pacparser engine has been initialized (using pacparser_init) and pac"]
