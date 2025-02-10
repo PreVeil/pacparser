@@ -25,7 +25,7 @@ d:
 
 
 $(PACPARSER): d ./includes/$(HEADER)
-	make -C ../src  -f ../src/$(MFILE) libpacparser.a
+	make -C ../src  -f ../src/$(MFILE) $(PACPARSER)
 	@pwsh -Command "Copy-Item ../src/$(PACPARSER) ./libs/$(PACPARSER)"
 	@pwsh -Command "Copy-Item ../src/spidermonkey/$(JS) ./libs/$(JS)"
 
