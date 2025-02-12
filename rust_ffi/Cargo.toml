@@ -13,7 +13,6 @@ clap = { git = "https://github.com/clap-rs/clap", revision = "9d03c8497ce17486e3
 [build-dependencies]
 bindgen = "0.53.2"
 
-
 [lib]
 name = "pacparser"
 
