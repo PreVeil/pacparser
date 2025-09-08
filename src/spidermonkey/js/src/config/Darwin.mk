@@ -43,7 +43,7 @@
 # Just ripped from Linux config
 #
 
-CC = cc
+CC = cc -arch x86_64 -arch arm64
 CCC = g++
 CFLAGS +=  -Wall -Wno-format
 OS_CFLAGS = -DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DDARWIN

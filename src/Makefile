@@ -37,6 +37,8 @@ OS_ARCH := $(subst /,_,$(shell uname -s | sed /\ /s//_/))
 LIBRARY_NAME = libpacparser
 LIB_VER = 1
 
+CC := MACOSX_DEPLOYMENT_TARGET="11.0" $(CC)
+
 # This Makefile should at least work on Linux and Mac OS X. It should work on
 # most other types of Unix systems too, but I have not put any conscious effort
 # for that.
@@ -56,6 +58,7 @@ endif
 ifeq ($(OS_ARCH),Darwin)
   PREFIX ?= /usr/local
   MAC_MAJOR_VERSION := $(shell sw_vers -productVersion | cut -d. -f1)
+  MAC_MAJOR_VERSION := 11.0
   MAC_GT_OS11 := $(shell [ $(MAC_MAJOR_VERSION) -le 10 ] && echo false)
   SO_SUFFIX = dylib
   LIBRARY = $(LIBRARY_NAME).$(LIB_VER).$(SO_SUFFIX)
@@ -69,6 +72,7 @@ ifeq ($(OS_ARCH),Darwin)
       SMCFLAGS =
     endif
   endif
+  MACOSX_DEPLOYMENT_TARGET := 11.0
   CFLAGS := $(CFLAGS) -arch x86_64 -arch arm64
 endif
 
@@ -151,12 +155,11 @@ dist: all
 
 # Targets to build python module
 pymod: pacparser.o pacparser.h spidermonkey/libjs.a
-	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
+	cd pymod && MACOSX_DEPLOYMENT_TARGET=11.0 ARCHFLAGS="-arch x86_64 -arch arm64" $(PYTHON) setup.py build
 	$(PYTHON) ../tests/runtests.py
 
 pymod-dist: pacparser.o pacparser.h spidermonkey/libjs.a
-	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py build
-	cd pymod && ARCHFLAGS="" $(PYTHON) setup.py dist
+	cd pymod && MACOSX_DEPLOYMENT_TARGET=11.0 ARCHFLAGS="-arch x86_64 -arch arm64" $(PYTHON) -m build --wheel
 	$(PYTHON) ../tests/runtests.py
 
 install-pymod: pymod
