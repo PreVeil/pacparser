@@ -45,6 +45,18 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag }}
 
+      # - name: Get ref_name
+      #   id: get_ref_name
+      #   if: ${{ matrix.os != 'windows-latest' }}
+      #   run: |
+      #     if [ "${{ github.event_name }}" == "pull_request" ]; then
+      #       echo "ref_name=${{ github.base_ref }}"
+      #       echo "ref_name=${{ github.base_ref }}" >> $GITHUB_OUTPUT || exit 1
+      #     else
+      #       echo "ref_name=${{ github.ref_name }}"
+      #       echo "ref_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT || exit 1
+      #     fi
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -62,19 +74,10 @@ jobs:
 
       - name: windows whl
         if: ${{ matrix.os == 'windows-latest' }}
-        run: make -C src -f Makefile.win32 pymod-dist
-
-      - name: Get ref_name
-        id: get_ref_name
-        if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "ref_name=${{ github.base_ref }}"
-            echo "ref_name=${{ github.base_ref }}" >> $GITHUB_OUTPUT || exit 1
-          else
-            echo "ref_name=${{ github.ref_name }}"
-            echo "ref_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT || exit 1
-          fi
+          make -C src -f Makefile.win32 pymod-dist
+          choco install msys2
+          find . -iname '*.whl'
 
       - name: Upload whl (non-windows)
         if: ${{ matrix.os != 'windows-latest' }}
