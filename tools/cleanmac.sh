@@ -13,4 +13,6 @@ rm -rf \
  src/spidermonkey/js/src/Darwin_DBG.OBJ/ \
  src/spidermonkey/js/src/jsautocfg.h \
  src/spidermonkey/libjs.a \
- /tmp/pacparser_*
+ src/pymod/build/ \
+ src/pymod/dist/ \
+ src/pymod/pacparser.egg-info/
