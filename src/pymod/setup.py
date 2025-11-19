@@ -166,6 +166,7 @@ def main(patched_func):
         },
         name="pacparser",
         version=pacparser_version(),
+        python_requires=">=3.12",
         description="Pacparser package",
         author="Manu Garg",
         author_email="manugarg@gmail.com",

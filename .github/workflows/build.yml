@@ -19,6 +19,9 @@ permissions:
 jobs:
   build:
     runs-on: macos-13
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v5
@@ -36,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up setuptools
         run: |
@@ -46,8 +49,8 @@ jobs:
       - name: Build a wheel
         run: make -C src pymod-dist
 
-      - name: Upload the wheet
+      - name: Upload the wheel
         uses: actions/upload-artifact@v4
         with:
-          name: pacparser-wheel
+          name: pacparser-wheel-py${{ matrix.python-version }}
           path: src/pymod/dist/pacparser*.whl

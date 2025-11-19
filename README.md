@@ -30,11 +30,10 @@ pacparser itself. As a result, pacparser is as close to standard as it gets :)
 
 ### Install
 
-For Python module, you can use pip. Pre-built module is available for `64-bit Linux,
-Windows, MacOS-Intel, and MacOS-ARM`, for Python `3.7, 3.8, 3.9, 3.10 and 3.11`.
+For Python module, you can use pip. Pre-built module is available for `64-bit MacOS Universal (Intel & ARM)`, for Python `3.12 and 3.13`.
 ```
 python -m pip install pacparser
-python -m pip install pacparser==1.3.8.dev15 (specific version)
+python -m pip install pacparser==2.0.1 (specific version)
 ```
 
 For other pre-built binaries, download them from the project's [releases](
