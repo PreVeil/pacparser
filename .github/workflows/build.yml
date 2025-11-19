@@ -1,16 +1,11 @@
-name: Build Pacparser
+name: Build Pacparser for Mac Universal
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - ".github/**"
-      - Makefile
-      - Dockerfile
+    branches:
+      - preveil
+      - feature/*
   pull_request:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -23,280 +18,39 @@ permissions:
 
 jobs:
   build:
+    runs-on: macos-13
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
-        include:
-          - os: ubuntu-latest
-            os_suffix: "ubuntu-x86_64"
-          - os: macos-latest
-            os_suffix: "macos-arm64"
-          - os: macos-13
-            os_suffix: "macos-x86_64"
-          - os: windows-latest
-            os_suffix: "windows-x86_64"
-    runs-on: ${{ matrix.os }}
+        python-version: ["3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/checkout@v5
         if: ${{ !contains(github.event_name, 'workflow_dispatch') }}
         with:
           fetch-depth: 0
 
       - name: Check out code for workflow_dispatch
         if: ${{ contains(github.event_name, 'workflow_dispatch') }}
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.tag }}
-
-      - name: make non-windows
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: make -C src
-
-      - name: make windows
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: make -C src -f Makefile.win32
-
-      - name: Get ref_name
-        id: get_ref_name
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "ref_name=${{ github.base_ref }}"
-            echo "ref_name=${{ github.base_ref }}" >> $GITHUB_OUTPUT || exit 1
-          else
-            echo "ref_name=${{ github.ref_name }}"
-            echo "ref_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT || exit 1
-          fi
-
-      - name: make non-windows dist
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          DIST_OS_SUFFIX=${{ matrix.os_suffix }} make -C src dist
-          ls -R src/*.zip
-
-      - name: make windows dist
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          make -C src -f Makefile.win32 dist
-
-      - name: Upload dist (non-windows)
-        if: ${{ matrix.os != 'windows-latest' }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
-        with:
-          name: pacparser-dist-${{ matrix.os }}
-          path: src/pacparser*.zip
-
-      - name: Upload dist (windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
-        with:
-          name: pacparser-dist-${{ matrix.os }}
-          path: src/dist
-
-  build-release-binaries:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download ubuntu cloudprober binaries
-        uses: actions/download-artifact@v4
-        with:
-          pattern: pacparser-dist-*
-
-      - name: Fix files
-        run: |
-          ls -R .
-          mv pacparser-dist-*/*.zip .
-          file=$(ls pacparser-*-ubuntu*.zip)
-          name=${file/ubuntu/windows}
-          name=${name/.zip/}
-          mv pacparser-dist-windows-latest $name
-          zip -r $name.zip $name
-
-      - name: Upload pacparser release
-        uses: actions/upload-artifact@v4
-        with:
-          name: pacparser-release-binaries
-          path: pacparser-*.zip
-
-  python-module-build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        architecture: [x64]
-        include:
-          - os: macos-latest
-            python-version: "3.11"
-            architecture: arm64
-          - os: macos-latest
-            python-version: "3.12"
-            architecture: arm64
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        if: ${{ !contains(github.event_name, 'workflow_dispatch') }}
-        with:
-          fetch-depth: 0
-
-      - name: Check out code for workflow_dispatch
-        if: ${{ contains(github.event_name, 'workflow_dispatch') }}
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag }}
 
       - name: Set up Python
-        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
 
       - name: Set up setuptools
         run: |
           python --version
-          python -mpip install setuptools
+          python -m pip install setuptools build wheel
 
-      - name: make non-windows
-        if: ${{ matrix.os != 'windows-latest' }}
+      - name: Build a wheel
         run: make -C src pymod-dist
 
-      - name: make windows
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: make -C src -f Makefile.win32 pymod-dist
-
-      - name: Upload dist
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+      - name: Upload the wheel
+        uses: actions/upload-artifact@v4
         with:
-          name:
-            pacparser-python-${{ matrix.python-version }}-${{ matrix.os }}-dist
-          path: src/pymod/pacparser-python*
-
-      - name: Build wheel non-linux
-        if: ${{ matrix.os != 'ubuntu-latest' }}
-        run: |
-          python -m pip install wheel
-          cd src/pymod && python setup.py bdist_wheel
-
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
-        id: src_changes
-        with:
-          filters: |
-            changed:
-              - 'src/**'
-
-      - name: Publish package to PyPI (non-linux)
-        if: |
-          (matrix.os != 'ubuntu-latest') &&
-          (steps.src_changes.outputs.changed == 'true' ||
-          startsWith(github.event.inputs.tag, 'v') || startsWith(github.ref,
-          'refs/tags/v')) && (github.event_name != 'pull_request')
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI }}
-        run: |
-          python -m pip install twine
-          ls -R .
-          twine upload src/pymod/dist/*
-
-  build-linux-wheels:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        if: ${{ !contains(github.event_name, 'workflow_dispatch') }}
-        with:
-          fetch-depth: 0
-
-      - name: Check out code for workflow_dispatch
-        if: ${{ contains(github.event_name, 'workflow_dispatch') }}
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.tag }}
-
-      - name: Set env
-        run: |
-          echo "PACPARSER_VERSION=$(git describe --always --tags \
-          --candidate=100)" >> $GITHUB_ENV
-
-      - name: Set up Python
-        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
-
-      - name: Set up setuptools
-        run: |
-          python --version
-          python -mpip install setuptools
-
-      - name: make
-        run: make -C src pymod
-
-      - name: Build sdist
-        run: cd src/pymod && python setup.py sdist
-
-      - name: Install cibuildwheel and twine
-        run: python -m pip install cibuildwheel twine
-
-      - name: Build wheel using cibuildwheel
-        run: |
-          cp src/spidermonkey/libjs.a src/pacparser.o src/pacparser.h src/pymod
-          cd src/pymod && python -m cibuildwheel --output-dir dist
-        env:
-          CIBW_BUILD: "cp{37,38,39,310,311,312}-manylinux*64"
-          CIBW_ENVIRONMENT: "PACPARSER_VERSION=${{ env.PACPARSER_VERSION }}"
-
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
-        id: src_changes
-        with:
-          filters: |
-            changed:
-              - 'src/**'
-
-      - name: Publish package to PyPI
-        if: |
-          startsWith(github.event.inputs.tag, 'v') ||
-          startsWith(github.ref,'refs/tags/v') ||steps.src_changes.outputs.changed == 'true'
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI }}
-        run: |
-          twine upload src/pymod/dist/*
-
-  build_and_push_docker_multiarch:
-    name: Build and push multiarch docker image
-    if: |
-      github.repository == 'manugarg/pacparser' &&
-      (github.ref == 'refs/heads/main' || startswith(github.ref, 'refs/heads/docker') ||
-      startsWith(github.ref, 'refs/tags/v'))
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code into the Go module directory
-        if: ${{ !contains(github.event_name, 'workflow_dispatch') }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check out code into the Go module directory
-        if: ${{ contains(github.event_name, 'workflow_dispatch') }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.inputs.tag }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push release Docker Image (main-ghcr)
-        run: make docker_multiarch DOCKER_IMAGE=ghcr.io/manugarg/pactester
+          name: pacparser-wheel-py${{ matrix.python-version }}
+          path: src/pymod/dist/pacparser*.whl

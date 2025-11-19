@@ -64,25 +64,28 @@ def sanitize_version(ver):
 def git_version():
     return sanitize_version(
         subprocess.check_output(
-            "git describe --always --tags --candidate=100".split(" "), text=True
+            "git describe --always --tags".split(" "), text=True
         )
     )
 
 
 def pacparser_version():
-    if (
-        subprocess.call("git rev-parse --git-dir".split(" "), stderr=subprocess.DEVNULL)
-        == 0
-    ):
-        return git_version()
-
-    # Check if we have version.mk. It's added in the manual release tarball.
     version_file = os.path.join(setup_dir(), "..", "version.mk")
-    if os.path.exists(version_file):
-        with open(version_file) as f:
-            return sanitize_version(f.read().replace("VERSION=", ""))
-
-    return sanitize_version(os.environ.get("PACPARSER_VERSION", "1.0.0"))
+    with open(version_file) as f:
+        v = f.read().replace("VERSION=", "").strip()
+        return v
+    # if (
+    #     subprocess.call("git rev-parse --git-dir".split(" "), stderr=subprocess.DEVNULL)
+    #     == 0
+    # ):
+    #     return git_version()
+    # # Check if we have version.mk. It's added in the manual release tarball.
+    # version_file = os.path.join(setup_dir(), "..", "version.mk")
+    # print(f"version_file={version_file}")
+    # if os.path.exists(version_file):
+    #     with open(version_file) as f:
+    #         return sanitize_version(f.read().replace("VERSION=", ""))
+    # return sanitize_version(os.environ.get("PACPARSER_VERSION", "1.0.0"))
 
 
 class DistCmd(setuptools.Command):
@@ -163,6 +166,7 @@ def main(patched_func):
         },
         name="pacparser",
         version=pacparser_version(),
+        python_requires=">=3.12",
         description="Pacparser package",
         author="Manu Garg",
         author_email="manugarg@gmail.com",
