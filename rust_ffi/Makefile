@@ -14,7 +14,6 @@ endif
 
 clean:
 	@pwsh -Command "if(Test-Path ./includes){Remove-Item -Recurse -Force ./includes}"
-	@pwsh -Command "if(Test-Path ./src/bindings.rs){Remove-Item -Recurse -Force ./src/bindings.rs}"
 	@pwsh -Command "if(Test-Path ./libs){Remove-Item -Recurse -Force ./libs}"
 	cargo clean
 	make -C ../src -f ../src/$(MFILE) clean
